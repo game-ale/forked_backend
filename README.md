@@ -81,6 +81,13 @@ Both Python and Node use the same `.env` file.
 
 See [docs/DEVELOPMENT.md](/tmp/backend-migration-gkNAmg/docs/DEVELOPMENT.md) and [docs/AI_DEVELOPMENT.md](/tmp/backend-migration-gkNAmg/docs/AI_DEVELOPMENT.md).
 
+## Contribution
+
+Before contributing, read:
+
+- [CONTRIBUTING.md](/tmp/backend-migration-gkNAmg/CONTRIBUTING.md)
+- [docs/WORKFLOW.md](/tmp/backend-migration-gkNAmg/docs/WORKFLOW.md)
+
 ## Notes
 
 - This backend uses `SUPABASE_DB_URL` rather than anonymous or service Supabase API keys because the task currently needs direct SQL access.
