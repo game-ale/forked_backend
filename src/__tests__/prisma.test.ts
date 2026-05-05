@@ -6,14 +6,14 @@ describe('prisma client', () => {
   });
 
   it('initializes PrismaClient when env.prismaConfigured is true', () => {
-    jest.mock('../config/env', () => ({
+    jest.doMock('../config/env', () => ({
       env: {
         prismaConfigured: true,
       },
     }));
     
     const mockPrismaClient = jest.fn();
-    jest.mock('@prisma/client', () => ({
+    jest.doMock('@prisma/client', () => ({
       PrismaClient: mockPrismaClient,
     }));
 
@@ -26,7 +26,7 @@ describe('prisma client', () => {
   });
 
   it('exports null when env.prismaConfigured is false', () => {
-    jest.mock('../config/env', () => ({
+    jest.doMock('../config/env', () => ({
       env: {
         prismaConfigured: false,
       },

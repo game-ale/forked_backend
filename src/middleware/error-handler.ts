@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from 'express';
 
 export function errorHandler(
   err: unknown,
@@ -6,12 +6,16 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ) {
-  console.error("Unhandled request error", err);
+  console.error('Unhandled request error', err);
+
+  if (res.headersSent) {
+    return _next(err);
+  }
 
   res.status(500).json({
     error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "An unexpected error occurred.",
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred.',
     },
   });
 }

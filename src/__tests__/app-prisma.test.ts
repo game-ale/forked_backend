@@ -7,7 +7,7 @@ describe('Express App with Prisma configured', () => {
   });
 
   it('reports clientReady true when database query succeeds', async () => {
-    jest.mock('../lib/prisma', () => ({
+    jest.doMock('../lib/prisma', () => ({
       prisma: {
         $queryRaw: jest.fn<any>().mockResolvedValue([{ 1: 1 }]),
       },
@@ -22,7 +22,7 @@ describe('Express App with Prisma configured', () => {
   });
 
   it('reports clientReady false when database query fails', async () => {
-    jest.mock('../lib/prisma', () => ({
+    jest.doMock('../lib/prisma', () => ({
       prisma: {
         $queryRaw: jest.fn<any>().mockRejectedValue(new Error('DB connection failed')),
       },
