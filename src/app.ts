@@ -2,10 +2,16 @@ import express from 'express';
 
 import { env } from './config/env';
 import { prisma } from './lib/prisma';
+import { errorHandler } from './middleware/error-handler';
+import { notFoundHandler } from './middleware/not-found';
+import { apiRouter } from './routes/index';
 
 export const app = express();
 
+app.disable('x-powered-by');
 app.use(express.json());
+
+app.use('/api', apiRouter);
 
 app.get('/health', async (_request, response) => {
   let clientReady = false;
@@ -25,3 +31,6 @@ app.get('/health', async (_request, response) => {
     clientReady,
   });
 });
+
+app.use(notFoundHandler);
+app.use(errorHandler);

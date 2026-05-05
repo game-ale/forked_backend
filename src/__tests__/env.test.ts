@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { env } from '../config/env';
 
 describe('env config', () => {
