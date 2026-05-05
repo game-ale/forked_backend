@@ -4,12 +4,12 @@ export function errorHandler(
   err: unknown,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ) {
   console.error('Unhandled request error', err);
 
   if (res.headersSent) {
-    return _next(err);
+    return next(err);
   }
 
   res.status(500).json({
