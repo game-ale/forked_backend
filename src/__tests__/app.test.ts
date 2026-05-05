@@ -1,3 +1,6 @@
+/// <reference types="jest" />
+import { describe, expect, it } from '@jest/globals';
+
 import request from 'supertest';
 
 // Ensure no DB URL is configured so tests run without a real database
@@ -43,6 +46,23 @@ describe('Express App', () => {
     it('returns 404 for an unregistered path', async () => {
       const response = await request(app).get('/not-a-real-route');
       expect(response.status).toBe(404);
+    });
+
+    it('returns the standard not found error body', async () => {
+      const response = await request(app).get('/not-a-real-route');
+      expect(response.body).toEqual({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Route not found.',
+        },
+      });
+    });
+  });
+
+  describe('security headers', () => {
+    it('does not expose x-powered-by', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['x-powered-by']).toBeUndefined();
     });
   });
 });
