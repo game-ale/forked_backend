@@ -9,6 +9,7 @@ RUN npm ci && npm run prisma:generate
 
 COPY src ./src
 COPY tools ./tools
+COPY scripts ./scripts
 
 ENV APP_ENV=production \
     HOST=0.0.0.0 \

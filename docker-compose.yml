@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    environment:
+      APP_NAME: ${APP_NAME:-Fuel-Aware Backend}
+      APP_ENV: ${APP_ENV:-development}
+      HOST: 0.0.0.0
+      PORT: ${APP_PORT:-8000}
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    env_file:
+      - path: .env
+        required: false
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
