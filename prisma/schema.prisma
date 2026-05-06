@@ -84,10 +84,9 @@ model UserVehicleAccess {
   user    UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle Vehicle     @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
 
-  // Ensure a user can only be an assigned driver to one vehicle
-  @@unique([userId, accessLevel], name: "unique_assigned_driver_per_user")
-  // Ensure a vehicle can only have one assigned driver
-  @@unique([vehicleId, accessLevel], name: "unique_assigned_driver_per_vehicle")
+  // Prevent duplicate access rows for the same user, vehicle, and access level.
+  // Prisma cannot express a partial unique index scoped only to access_level = 'assigned_driver'.
+  @@unique([userId, vehicleId, accessLevel], name: "unique_user_vehicle_access_level")
   @@map("user_vehicle_access")
 }
 

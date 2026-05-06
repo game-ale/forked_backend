@@ -2,7 +2,10 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('dotenv', () => ({ config: jest.fn() }));
 
-import { env } from '../config/env';
+delete process.env.SUPABASE_DB_URL;
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { env } = require('../config/env') as typeof import('../config/env');
 
 describe('env config', () => {
   it('exports all required fields', () => {

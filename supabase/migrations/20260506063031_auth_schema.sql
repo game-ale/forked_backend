@@ -1,7 +1,7 @@
 -- user_profiles table
 CREATE TABLE public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
   full_name TEXT,
   role TEXT NOT NULL CHECK (role IN ('admin', 'driver', 'viewer')) DEFAULT 'viewer',
   status TEXT NOT NULL CHECK (status IN ('active', 'disabled')) DEFAULT 'active',
@@ -21,7 +21,7 @@ BEGIN
   );
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
