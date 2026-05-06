@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { AuthError } from '../auth/errors';
 
 export function errorHandler(
   err: unknown,
@@ -6,11 +7,21 @@ export function errorHandler(
   res: Response,
   next: NextFunction,
 ) {
-  console.error('Unhandled request error', err);
-
   if (res.headersSent) {
     return next(err);
   }
+
+  if (err instanceof AuthError) {
+    res.status(err.statusCode).json({
+      error: {
+        code: err.code,
+        message: err.message,
+      },
+    });
+    return;
+  }
+
+  console.error('Unhandled request error', err);
 
   res.status(500).json({
     error: {

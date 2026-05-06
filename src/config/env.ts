@@ -11,6 +11,9 @@ const envSchema = z.object({
   APP_PORT: z.coerce.number().int().positive().optional(),
   PORT: z.coerce.number().int().positive().optional(),
   SUPABASE_DB_URL: z.string().url().optional(),
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_ANON_KEY: z.string().min(1),
+  AUTH_DEVICE_TOKEN_PEPPER: z.string().min(1),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -22,4 +25,7 @@ export const env = {
   port: parsedEnv.APP_PORT ?? parsedEnv.PORT ?? 8000,
   supabaseDbUrl: parsedEnv.SUPABASE_DB_URL,
   prismaConfigured: Boolean(parsedEnv.SUPABASE_DB_URL),
+  supabaseUrl: parsedEnv.SUPABASE_URL,
+  supabaseAnonKey: parsedEnv.SUPABASE_ANON_KEY,
+  authDeviceTokenPepper: parsedEnv.AUTH_DEVICE_TOKEN_PEPPER,
 } as const;

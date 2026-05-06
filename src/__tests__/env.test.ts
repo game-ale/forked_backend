@@ -1,5 +1,14 @@
-import { describe, expect, it } from '@jest/globals';
-import { env } from '../config/env';
+import { describe, expect, it, jest } from '@jest/globals';
+
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+
+delete process.env.SUPABASE_DB_URL;
+process.env.SUPABASE_URL = 'http://127.0.0.1:54321';
+process.env.SUPABASE_ANON_KEY = 'dummy-anon-key';
+process.env.AUTH_DEVICE_TOKEN_PEPPER = 'dummy-pepper';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { env } = require('../config/env') as typeof import('../config/env');
 
 describe('env config', () => {
   it('exports all required fields', () => {
