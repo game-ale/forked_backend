@@ -1,6 +1,9 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import request from 'supertest';
+
+// Prevent dotenv from loading the local .env file which would override our deleted env var
+jest.mock('dotenv', () => ({ config: jest.fn() }));
 
 // Ensure no DB URL is configured so tests run without a real database
 delete process.env.SUPABASE_DB_URL;
