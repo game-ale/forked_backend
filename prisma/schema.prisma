@@ -8,22 +8,23 @@ datasource db {
 }
 
 model Vehicle {
-  vehicleId          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("vehicleId")
-  plateNumber        String               @map("plateNumber")
-  label              String
-  tankCapacityLiters Decimal              @db.Decimal(10, 2) @map("tankCapacityLiters")
-  assignedDriver     String?              @map("assignedDriver")
-  status             String
-  createdAt          DateTime             @default(now()) @db.Timestamptz(6) @map("createdAt")
-  telemetry          TelemetryNormalized[]
-  latestState        VehicleLatestState?
+  vehicleId           String                @id @default(dbgenerated("gen_random_uuid()")) @map("vehicleId") @db.Uuid
+  plateNumber         String                @map("plateNumber")
+  label               String
+  tankCapacityLiters  Decimal               @map("tankCapacityLiters") @db.Decimal(10, 2)
+  assignedDriver      String?               @map("assignedDriver")
+  status              String
+  createdAt           DateTime              @default(now()) @map("createdAt") @db.Timestamptz(6)
+  telemetry           TelemetryNormalized[]
+  latestState         VehicleLatestState?
+  userVehicleAccesses UserVehicleAccess[]
 
   @@map("vehicles")
 }
 
 model TelemetryRaw {
-  telemetryId String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("telemetryId")
-  receivedAt  DateTime @default(now()) @db.Timestamptz(6) @map("receivedAt")
+  telemetryId String   @id @default(dbgenerated("gen_random_uuid()")) @map("telemetryId") @db.Uuid
+  receivedAt  DateTime @default(now()) @map("receivedAt") @db.Timestamptz(6)
   payload     Json
   source      String
 
@@ -31,26 +32,26 @@ model TelemetryRaw {
 }
 
 model TelemetryNormalized {
-  telemetryId       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid @map("telemetryId")
-  vehicleId         String    @db.Uuid @map("vehicleId")
-  deviceId          String    @map("deviceId")
-  timestamp         DateTime  @db.Timestamptz(6) @map("timestamp")
-  fuelLevelLiters   Decimal?  @db.Decimal(10, 2) @map("fuelLevelLiters")
-  fuelLevelPercent  Decimal?  @db.Decimal(5, 2) @map("fuelLevelPercent")
-  latitude          Decimal?  @db.Decimal(10, 7)
-  longitude         Decimal?  @db.Decimal(10, 7)
-  speedKph          Decimal?  @db.Decimal(10, 2) @map("speedKph")
-  engineStatus      String?   @map("engineStatus")
-  vehicle           Vehicle   @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+  telemetryId      String   @id @default(dbgenerated("gen_random_uuid()")) @map("telemetryId") @db.Uuid
+  vehicleId        String   @map("vehicleId") @db.Uuid
+  deviceId         String   @map("deviceId")
+  timestamp        DateTime @map("timestamp") @db.Timestamptz(6)
+  fuelLevelLiters  Decimal? @map("fuelLevelLiters") @db.Decimal(10, 2)
+  fuelLevelPercent Decimal? @map("fuelLevelPercent") @db.Decimal(5, 2)
+  latitude         Decimal? @db.Decimal(10, 7)
+  longitude        Decimal? @db.Decimal(10, 7)
+  speedKph         Decimal? @map("speedKph") @db.Decimal(10, 2)
+  engineStatus     String?  @map("engineStatus")
+  vehicle          Vehicle  @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
 
   @@map("telemetry_normalized")
 }
 
 model VehicleLatestState {
-  vehicleId         String    @id @db.Uuid @map("vehicleId")
-  lastSeenAt        DateTime? @db.Timestamptz(6) @map("lastSeenAt")
-  fuelLevelLiters   Decimal?  @db.Decimal(10, 2) @map("fuelLevelLiters")
-  fuelLevelPercent  Decimal?  @db.Decimal(5, 2) @map("fuelLevelPercent")
+  vehicleId         String    @id @map("vehicleId") @db.Uuid
+  lastSeenAt        DateTime? @map("lastSeenAt") @db.Timestamptz(6)
+  fuelLevelLiters   Decimal?  @map("fuelLevelLiters") @db.Decimal(10, 2)
+  fuelLevelPercent  Decimal?  @map("fuelLevelPercent") @db.Decimal(5, 2)
   latitude          Decimal?  @db.Decimal(10, 7)
   longitude         Decimal?  @db.Decimal(10, 7)
   engineStatus      String?   @map("engineStatus")
@@ -59,4 +60,41 @@ model VehicleLatestState {
   vehicle           Vehicle   @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
 
   @@map("vehicle_latest_state")
+}
+
+model UserProfile {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  role      String   @default("viewer")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vehicleAccess UserVehicleAccess[]
+
+  @@map("user_profiles")
+}
+
+model UserVehicleAccess {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String @map("user_id") @db.Uuid
+  vehicleId   String @map("vehicle_id") @db.Uuid
+  accessLevel String @map("access_level") // 'owner', 'assigned_driver', 'viewer'
+
+  user    UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+
+  // Prevent duplicate access rows for the same user, vehicle, and access level.
+  // Prisma cannot express a partial unique index scoped only to access_level = 'assigned_driver'.
+  @@unique([userId, vehicleId, accessLevel], name: "unique_user_vehicle_access_level")
+  @@map("user_vehicle_access")
+}
+
+model DeviceCredential {
+  deviceId      String   @id @map("device_id")
+  tokenHash     String   @map("token_hash")
+  status        String   @default("active")
+  lastRotatedAt DateTime @default(now()) @map("last_rotated_at") @db.Timestamptz(6)
+
+  @@map("device_credentials")
 }

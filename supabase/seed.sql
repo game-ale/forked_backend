@@ -1,0 +1,4 @@
+-- supabase/seed.sql
+-- This file is currently empty, but exists so that 'supabase db reset' 
+-- does not fail when checking for the seed_paths configuration.
+-- You can add SQL insert statements here later to seed the database.
