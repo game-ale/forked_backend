@@ -51,8 +51,4 @@ jobs:
         run: npm run lint
 
       - name: Test Node
-        env:
-          SUPABASE_URL: http://127.0.0.1:54321
-          SUPABASE_ANON_KEY: dummy-anon-key
-          AUTH_DEVICE_TOKEN_PEPPER: dummy-pepper
         run: npm run test

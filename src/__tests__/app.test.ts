@@ -7,9 +7,6 @@ jest.mock('dotenv', () => ({ config: jest.fn() }));
 
 // Ensure no DB URL is configured so tests run without a real database
 delete process.env.SUPABASE_DB_URL;
-process.env.SUPABASE_URL = 'http://127.0.0.1:54321';
-process.env.SUPABASE_ANON_KEY = 'dummy-anon-key';
-process.env.AUTH_DEVICE_TOKEN_PEPPER = 'dummy-pepper';
 
 // Import app after clearing env to get the unconfigured state
 // eslint-disable-next-line @typescript-eslint/no-require-imports
