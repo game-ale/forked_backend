@@ -34,7 +34,6 @@ export async function verifyUserToken(token: string): Promise<{ subject: string;
   if (!secretKey) {
     throw new Error('Server configuration error: SUPABASE_JWT_SECRET is required to verify tokens.');
   }
-
   try {
     const payload = await new Promise<JwtPayload>((resolve, reject) => {
       jwt.verify(
