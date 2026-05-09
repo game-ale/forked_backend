@@ -73,6 +73,7 @@ describe('requireUser middleware', () => {
       subject: 'user-123',
       email: 'test@example.com',
       tokenType: 'user',
+      profileResolved: false,
       role: 'viewer', // default placeholder
       vehicleIds: [],
     });

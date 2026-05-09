@@ -402,13 +402,16 @@ Do not leak internal verification details in error messages.
 
 ### Optional
 
-- `SUPABASE_JWT_SECRET`
-  Only if you choose local JWT verification against the signing secret instead of using Supabase JWKS.
 - `AUTH_DEVICE_TOKEN_PEPPER`
   Extra server-side secret used when hashing device tokens.
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `AI_RUNTIME`
+
+### Required For Current User JWT Verification
+
+- `SUPABASE_JWT_SECRET`
+  Current backend implementation verifies Supabase user JWTs locally with HS256, so this secret is required until JWKS-based verification is implemented.
 
 ### Environment Rules
 

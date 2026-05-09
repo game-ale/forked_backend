@@ -13,7 +13,7 @@ const envSchema = z.object({
   SUPABASE_DB_URL: z.string().url().optional(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_JWT_SECRET: z.string().min(1),
+  SUPABASE_JWT_SECRET: z.string().min(1).optional(),
   AUTH_DEVICE_TOKEN_PEPPER: z.string().min(1),
 });
 

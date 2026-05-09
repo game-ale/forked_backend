@@ -25,6 +25,7 @@ export const requireUser = async (req: Request, res: Response, next: NextFunctio
       subject,
       email,
       tokenType: 'user',
+      profileResolved: false,
       // We set role to 'viewer' as a safe default. The role-resolution middleware 
       // (implemented in a later step) will overwrite this with the real database role.
       role: 'viewer',
