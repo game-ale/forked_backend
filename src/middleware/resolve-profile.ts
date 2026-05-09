@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthError } from '../auth/errors';
-import { AppRole } from '../auth/types';
+import { isAppRole } from '../auth/types';
 
 /**
  * Express middleware that resolves the authenticated user's database profile.
@@ -36,8 +36,13 @@ export const resolveUserProfile = async (req: Request, res: Response, next: Next
       throw AuthError.forbidden('Access denied. User account is disabled.');
     }
 
+    if (!isAppRole(profile.role)) {
+      throw AuthError.forbidden('Access denied. User role is invalid.');
+    }
+
     // 5. Upgrade the request context
-    req.auth.role = profile.role as AppRole;
+    req.auth.role = profile.role;
+    req.auth.profileResolved = true;
     
     // We also overwrite the email if the database has it mapped differently
     if (profile.email) {

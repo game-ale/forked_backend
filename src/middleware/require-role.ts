@@ -9,10 +9,14 @@ import { AuthError } from '../auth/errors';
  * @param allowedRoles The array of AppRoles allowed to access the route.
  */
 export const requireRole = (...allowedRoles: AppRole[]) => {
+  if (allowedRoles.length === 0) {
+    throw new Error('requireRole must be called with at least one allowed role.');
+  }
+
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       // 1. Ensure `resolveUserProfile` ran successfully first
-      if (!req.auth || !req.auth.role) {
+      if (!req.auth || !req.auth.profileResolved) {
         throw AuthError.unauthorized('Authentication context is missing. Ensure resolveUserProfile runs first.');
       }
 

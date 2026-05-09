@@ -3,7 +3,7 @@ import { env } from '../config/env';
 import { AuthError } from './errors';
 
 // Supabase uses the JWT Secret directly for HS256
-const secretKey = env.supabaseJwtSecret;
+const secretKey = env.supabaseJwtSecret || '';
 
 /**
  * Extracts a Bearer token from the Authorization header.
@@ -31,6 +31,10 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
  * @throws {AuthError} If the token is invalid, expired, or has wrong audience.
  */
 export async function verifyUserToken(token: string): Promise<{ subject: string; email: string | null }> {
+  if (!secretKey) {
+    throw new Error('Server configuration error: SUPABASE_JWT_SECRET is required to verify tokens.');
+  }
+
   try {
     const payload = await new Promise<JwtPayload>((resolve, reject) => {
       jwt.verify(

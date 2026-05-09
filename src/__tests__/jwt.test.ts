@@ -24,7 +24,7 @@ describe('JWT Utilities', () => {
   });
 
   describe('verifyUserToken', () => {
-    const secretKey = env.supabaseJwtSecret;
+    const secretKey = env.supabaseJwtSecret || '';
 
     const createValidToken = (payload: Record<string, unknown> = {}) => {
       return jwt.sign(

@@ -26,6 +26,7 @@ describe('resolveUserProfile middleware', () => {
         subject: 'user-123',
         email: 'original@example.com',
         tokenType: 'user',
+        profileResolved: false,
         role: 'viewer', // initial placeholder role
         vehicleIds: [],
       },
@@ -103,7 +104,30 @@ describe('resolveUserProfile middleware', () => {
     );
 
     expect(mockRequest.auth?.role).toBe('admin');
+    expect(mockRequest.auth?.profileResolved).toBe(true);
     expect(mockRequest.auth?.email).toBe('database@example.com');
     expect(nextFunction).toHaveBeenCalledWith(); // Called without error
+  });
+
+  it('throws forbidden if profile role is invalid', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'user-123',
+      email: 'database@example.com',
+      fullName: 'John Doe',
+      role: 'super-admin',
+      status: 'active',
+      createdAt: new Date(),
+    });
+
+    await resolveUserProfile(
+      mockRequest as Request,
+      mockResponse as Response,
+      nextFunction
+    );
+
+    expect(nextFunction).toHaveBeenCalledWith(expect.any(AuthError));
+    const error = (nextFunction as jest.Mock).mock.calls[0][0] as AuthError;
+    expect(error.code).toBe('FORBIDDEN');
+    expect(error.message).toBe('Access denied. User role is invalid.');
   });
 });

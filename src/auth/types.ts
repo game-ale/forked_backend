@@ -6,6 +6,12 @@
  */
 export type AppRole = 'admin' | 'driver' | 'viewer';
 
+export const APP_ROLES: readonly AppRole[] = ['admin', 'driver', 'viewer'] as const;
+
+export function isAppRole(value: string): value is AppRole {
+  return APP_ROLES.includes(value as AppRole);
+}
+
 /**
  * Indicates the type of token used for authentication.
  * - `user`: A standard JWT issued by Supabase Auth for human users.
@@ -21,6 +27,7 @@ export type TokenType = 'user' | 'device' | 'service';
 export type AuthContext = {
   subject: string;
   role: AppRole;
+  profileResolved: boolean;
   email: string | null;
   vehicleIds: string[];
   tokenType: TokenType;
