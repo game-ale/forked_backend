@@ -13,25 +13,29 @@ import { isAppRole } from '../auth/types';
  */
 export const resolveUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 1. Ensure `requireUser` ran successfully first
     if (!req.auth || !req.auth.subject) {
       throw AuthError.unauthorized('Authentication context is missing. Ensure requireUser runs first.');
     }
 
-    // 2. Query the database directly for fresh security guarantees
     if (!prisma) {
       throw new Error('Database is not configured. Cannot resolve user profile.');
     }
     const profile = await prisma.userProfile.findUnique({
       where: { id: req.auth.subject },
+      include: {
+        vehicleAccess: {
+          select: {
+            vehicleId: true,
+            accessLevel: true,
+          },
+        },
+      },
     });
 
-    // 3. Handle missing profiles (They are authenticated in Supabase, but missing in our DB)
     if (!profile) {
       throw AuthError.forbidden('Access denied. No user profile found.');
     }
 
-    // 4. Handle disabled accounts
     if (profile.status !== 'active') {
       throw AuthError.forbidden('Access denied. User account is disabled.');
     }
@@ -40,11 +44,20 @@ export const resolveUserProfile = async (req: Request, res: Response, next: Next
       throw AuthError.forbidden('Access denied. User role is invalid.');
     }
 
-    // 5. Upgrade the request context
+    if (profile.role === 'driver') {
+      const driverAssignments = profile.vehicleAccess.filter(
+        (access) => access.accessLevel === 'assigned_driver',
+      );
+
+      if (driverAssignments.length !== 1) {
+        throw AuthError.forbidden('Access denied. Driver must be assigned to exactly one vehicle.');
+      }
+    }
+
     req.auth.role = profile.role;
     req.auth.profileResolved = true;
+    req.auth.vehicleIds = profile.vehicleAccess.map((access) => access.vehicleId);
     
-    // We also overwrite the email if the database has it mapped differently
     if (profile.email) {
       req.auth.email = profile.email;
     }
