@@ -1,7 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
-import request from 'supertest';
+import type { Request } from 'express';
 
-// Mock prisma FIRST before importing the app
 jest.mock('../lib/prisma', () => ({
   prisma: {
     deviceCredential: {
@@ -14,14 +13,46 @@ jest.mock('../lib/prisma', () => ({
   },
 }));
 
-// Import after mocking
-import { app } from '../app';
 import { prisma } from '../lib/prisma';
 import { generateDeviceToken } from '../auth/device-tokens';
+import { requireDevice } from '../middleware/require-device';
+import { ingestTelemetry } from '../controllers/telemetry.controller';
+import {
+  createMockResponse,
+  createNextCollector,
+  handleCapturedError,
+} from './helpers/mock-http';
 
 const mockDeviceFindUnique = jest.mocked(prisma!.deviceCredential.findUnique);
 const mockVehicleFindUnique = jest.mocked(prisma!.vehicle.findUnique);
 const mockTransaction = jest.mocked(prisma!.$transaction);
+
+async function runTelemetryRequest(
+  payload: Record<string, unknown>,
+  authorization?: string,
+) {
+  const request = {
+    headers: authorization ? { authorization } : {},
+    body: payload,
+    auth: undefined,
+  } as Partial<Request> & { auth?: any };
+  const response = createMockResponse();
+
+  const authNext = createNextCollector();
+  await requireDevice(request as Request, response as any, authNext.next);
+  if (authNext.getError()) {
+    handleCapturedError(authNext.getError(), request, response);
+    return response;
+  }
+
+  const handlerNext = createNextCollector();
+  await ingestTelemetry(request as Request, response as any, handlerNext.next);
+  if (handlerNext.getError()) {
+    handleCapturedError(handlerNext.getError(), request, response);
+  }
+
+  return response;
+}
 
 describe('POST /api/telemetry', () => {
   let validToken: string;
@@ -33,28 +64,19 @@ describe('POST /api/telemetry', () => {
     validToken = tokenData.token;
     validHash = tokenData.hash;
 
-    // Default mock behavior for a successful device auth
     mockDeviceFindUnique.mockResolvedValue({
       deviceId: 'ESP32-TEST',
+      vehicleId: 'b71239c0-639a-4c2f-b44d-5c8e434f0f19',
       tokenHash: validHash,
       status: 'active',
       lastRotatedAt: new Date(),
-    });
-
-    // Default mock behavior for a successful vehicle lookup
-    mockVehicleFindUnique.mockResolvedValue({
-      vehicleId: 'b71239c0-639a-4c2f-b44d-5c8e434f0f19',
-      licensePlate: 'TEST-123',
-      make: 'Toyota',
-      model: 'Hilux',
-      year: 2023,
-      fuelCapacityLiters: 80,
-      createdAt: new Date(),
     } as any);
 
-    // Mock transaction to just execute the callback
+    mockVehicleFindUnique.mockResolvedValue({
+      vehicleId: 'b71239c0-639a-4c2f-b44d-5c8e434f0f19',
+    } as any);
+
     mockTransaction.mockImplementation(async (callback: any) => {
-      // Create a mock transaction client
       const txClient = {
         telemetryRaw: { create: jest.fn() },
         telemetryNormalized: { create: jest.fn() },
@@ -80,12 +102,15 @@ describe('POST /api/telemetry', () => {
   };
 
   it('rejects requests missing the Authorization header', async () => {
-    const response = await request(app)
-      .post('/api/telemetry')
-      .send(validPayload);
+    const response = await runTelemetryRequest(validPayload);
 
-    expect(response.status).toBe(401);
-    expect(response.body.error.message).toBe('Missing Bearer token in Authorization header.');
+    expect(response.statusCode).toBe(401);
+    expect(response.body).toEqual({
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Missing Bearer token in Authorization header.',
+      },
+    });
   });
 
   it('rejects requests with validation errors (missing required fields)', async () => {
@@ -93,48 +118,59 @@ describe('POST /api/telemetry', () => {
     // @ts-expect-error forcing missing field
     delete invalidPayload.timestamp;
 
-    const response = await request(app)
-      .post('/api/telemetry')
-      .set('Authorization', `Bearer ${validToken}`)
-      .send(invalidPayload);
+    const response = await runTelemetryRequest(invalidPayload, `Bearer ${validToken}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Validation Error');
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toMatchObject({
+      error: 'Validation Error',
+    });
   });
 
   it('rejects requests where the device attempts to spoof another device ID', async () => {
     const spoofPayload = { ...validPayload, deviceId: 'HACKED-DEVICE' };
 
-    const response = await request(app)
-      .post('/api/telemetry')
-      .set('Authorization', `Bearer ${validToken}`) // Token is for ESP32-TEST
-      .send(spoofPayload);
+    const response = await runTelemetryRequest(spoofPayload, `Bearer ${validToken}`);
 
-    expect(response.status).toBe(403);
-    expect(response.body.error.message).toContain('Spoofing detected');
+    expect(response.statusCode).toBe(403);
+    expect((response.body as any).error.message).toContain('Spoofing detected');
+  });
+
+  it('rejects requests where the device submits telemetry for an unassigned vehicleId', async () => {
+    mockDeviceFindUnique.mockResolvedValue({
+      deviceId: 'ESP32-TEST',
+      vehicleId: '790ad376-1a80-4ef4-9b0c-4f89bfb83afb',
+      tokenHash: validHash,
+      status: 'active',
+      lastRotatedAt: new Date(),
+    } as any);
+
+    const response = await runTelemetryRequest(validPayload, `Bearer ${validToken}`);
+
+    expect(response.statusCode).toBe(403);
+    expect((response.body as any).error.message).toContain('is not assigned to vehicle');
   });
 
   it('rejects requests if the vehicleId does not exist in the database', async () => {
-    mockVehicleFindUnique.mockResolvedValue(null); // Vehicle not found
+    mockVehicleFindUnique.mockResolvedValue(null);
 
-    const response = await request(app)
-      .post('/api/telemetry')
-      .set('Authorization', `Bearer ${validToken}`)
-      .send(validPayload);
+    const response = await runTelemetryRequest(validPayload, `Bearer ${validToken}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Bad Request');
-    expect(response.body.message).toContain('does not exist or is not registered');
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toMatchObject({
+      error: 'Bad Request',
+    });
+    expect((response.body as any).message).toContain('does not exist or is not registered');
   });
 
   it('successfully ingests telemetry and returns 202 Accepted', async () => {
-    const response = await request(app)
-      .post('/api/telemetry')
-      .set('Authorization', `Bearer ${validToken}`)
-      .send(validPayload);
+    const response = await runTelemetryRequest(validPayload, `Bearer ${validToken}`);
 
-    expect(response.status).toBe(202);
-    expect(response.body.message).toBe('Telemetry ingested successfully');
+    expect(response.statusCode).toBe(202);
+    expect(response.body).toMatchObject({
+      message: 'Telemetry ingested successfully',
+      deviceId: 'ESP32-TEST',
+      vehicleId: 'b71239c0-639a-4c2f-b44d-5c8e434f0f19',
+    });
     expect(mockTransaction).toHaveBeenCalled();
   });
 });

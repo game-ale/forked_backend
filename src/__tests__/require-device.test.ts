@@ -77,10 +77,11 @@ describe('requireDevice middleware', () => {
     mockRequest.headers.authorization = `Bearer ${token}`;
     mockFindUnique.mockResolvedValue({
       deviceId: 'sensor-001',
+      vehicleId: '0d3828d5-895e-4d15-a5a6-10ddf3b5f97d',
       tokenHash: wrongHash,
       status: 'active',
       lastRotatedAt: new Date(),
-    });
+    } as any);
 
     await requireDevice(mockRequest as Request, mockResponse as Response, nextFunction);
 
@@ -95,17 +96,18 @@ describe('requireDevice middleware', () => {
     mockRequest.headers.authorization = `Bearer ${token}`;
     mockFindUnique.mockResolvedValue({
       deviceId: 'sensor-002',
+      vehicleId: 'c2b86e14-0b81-4203-84f7-13efc909263a',
       tokenHash: hash,
-      status: 'suspended', // Invalid status
+      status: 'disabled',
       lastRotatedAt: new Date(),
-    });
+    } as any);
 
     await requireDevice(mockRequest as Request, mockResponse as Response, nextFunction);
 
     expect(nextFunction).toHaveBeenCalledWith(expect.any(AuthError));
     const error = (nextFunction as jest.Mock).mock.calls[0][0] as AuthError;
     expect(error.code).toBe('FORBIDDEN');
-    expect(error.message).toBe('Access denied. Device credential is suspended.');
+    expect(error.message).toBe('Access denied. Device credential is disabled.');
   });
 
   it('populates req.auth and calls next() for a valid, active token', async () => {
@@ -114,10 +116,11 @@ describe('requireDevice middleware', () => {
     mockRequest.headers.authorization = `Bearer ${token}`;
     mockFindUnique.mockResolvedValue({
       deviceId: 'sensor-003',
+      vehicleId: '996f8713-cd64-4173-8f2f-3c20a5615640',
       tokenHash: hash,
       status: 'active',
       lastRotatedAt: new Date(),
-    });
+    } as any);
 
     await requireDevice(mockRequest as Request, mockResponse as Response, nextFunction);
 
@@ -131,7 +134,7 @@ describe('requireDevice middleware', () => {
       tokenType: 'device',
       role: 'viewer',
       profileResolved: true,
-      vehicleIds: [],
+      vehicleIds: ['996f8713-cd64-4173-8f2f-3c20a5615640'],
     });
   });
 });
