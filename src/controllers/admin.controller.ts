@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import { generateDeviceToken } from '../auth/device-tokens';
+import { AuthError } from '../auth/errors';
+import { createDeviceCredentialSchema } from '../schemas/device-credential.schema';
 
 /**
  * Retrieves a list of all registered users in the system.
@@ -29,6 +32,139 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     res.status(200).json({
       message: 'Users retrieved successfully',
       data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createDeviceCredential = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = createDeviceCredentialSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        details: parsed.error.issues,
+      });
+    }
+
+    if (!prisma) {
+      throw new Error('Database is not configured.');
+    }
+
+    const { deviceId, vehicleId } = parsed.data;
+    const { token, hash } = generateDeviceToken(deviceId);
+
+    const createdCredential = await (prisma.deviceCredential as any).create({
+      data: {
+        deviceId,
+        vehicleId,
+        tokenHash: hash,
+        status: 'active',
+      },
+    });
+
+    res.status(201).json({
+      message: 'Device credential created successfully',
+      data: {
+        deviceId: createdCredential.deviceId,
+        vehicleId,
+        status: createdCredential.status,
+        token,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rotateDeviceCredential = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rawDeviceId = req.params.deviceId;
+    const deviceId = Array.isArray(rawDeviceId) ? rawDeviceId[0] : rawDeviceId;
+
+    if (typeof deviceId !== 'string' || deviceId.length === 0) {
+      throw AuthError.forbidden('Access denied. Missing device route param: deviceId');
+    }
+
+    if (!prisma) {
+      throw new Error('Database is not configured.');
+    }
+
+    const existingCredential = await (prisma.deviceCredential as any).findUnique({
+      where: { deviceId },
+    });
+
+    if (!existingCredential) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Device credential ${deviceId} was not found.`,
+      });
+    }
+
+    const { token, hash } = generateDeviceToken(deviceId);
+
+    const updatedCredential = await (prisma.deviceCredential as any).update({
+      where: { deviceId },
+      data: {
+        tokenHash: hash,
+        status: 'active',
+        lastRotatedAt: new Date(),
+      },
+    });
+
+    res.status(200).json({
+      message: 'Device credential rotated successfully',
+      data: {
+        deviceId: updatedCredential.deviceId,
+        vehicleId: existingCredential.vehicleId,
+        status: updatedCredential.status,
+        token,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const disableDeviceCredential = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rawDeviceId = req.params.deviceId;
+    const deviceId = Array.isArray(rawDeviceId) ? rawDeviceId[0] : rawDeviceId;
+
+    if (typeof deviceId !== 'string' || deviceId.length === 0) {
+      throw AuthError.forbidden('Access denied. Missing device route param: deviceId');
+    }
+
+    if (!prisma) {
+      throw new Error('Database is not configured.');
+    }
+
+    const existingCredential = await (prisma.deviceCredential as any).findUnique({
+      where: { deviceId },
+    });
+
+    if (!existingCredential) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Device credential ${deviceId} was not found.`,
+      });
+    }
+
+    const disabledCredential = await (prisma.deviceCredential as any).update({
+      where: { deviceId },
+      data: {
+        status: 'disabled',
+      },
+    });
+
+    res.status(200).json({
+      message: 'Device credential disabled successfully',
+      data: {
+        deviceId: disabledCredential.deviceId,
+        vehicleId: existingCredential.vehicleId,
+        status: disabledCredential.status,
+      },
     });
   } catch (error) {
     next(error);
