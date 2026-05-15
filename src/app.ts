@@ -13,7 +13,7 @@ app.use(express.json());
 
 app.use('/api', apiRouter);
 
-app.get('/health', async (_request, response) => {
+export const healthHandler = async (_request: express.Request, response: express.Response) => {
   let clientReady = false;
   if (prisma) {
     try {
@@ -30,7 +30,9 @@ app.get('/health', async (_request, response) => {
     prismaConfigured: env.prismaConfigured,
     clientReady,
   });
-});
+};
+
+app.get('/health', healthHandler);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

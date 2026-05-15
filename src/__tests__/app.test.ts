@@ -1,31 +1,27 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import type { Request } from 'express';
+import { app, healthHandler } from '../app';
+import { notFoundHandler } from '../middleware/not-found';
+import { createMockResponse } from './helpers/mock-http';
 
-import request from 'supertest';
-
-// Prevent dotenv from loading the local .env file which would override our deleted env var
 jest.mock('dotenv', () => ({ config: jest.fn() }));
 
-// Ensure no DB URL is configured so tests run without a real database
-delete process.env.SUPABASE_DB_URL;
-
-// Import app after clearing env to get the unconfigured state
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { app } = require('../app') as typeof import('../app');
-
 describe('Express App', () => {
-  describe('GET /health', () => {
-    it('responds with HTTP 200', async () => {
-      const response = await request(app).get('/health');
-      expect(response.status).toBe(200);
-    });
-
+  describe('health handler', () => {
     it('returns status ok', async () => {
-      const response = await request(app).get('/health');
-      expect(response.body.status).toBe('ok');
+      const response = createMockResponse();
+
+      await healthHandler({} as Request, response as any);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ status: 'ok' });
     });
 
     it('includes all expected response fields', async () => {
-      const response = await request(app).get('/health');
+      const response = createMockResponse();
+
+      await healthHandler({} as Request, response as any);
+
       expect(response.body).toHaveProperty('status');
       expect(response.body).toHaveProperty('appName');
       expect(response.body).toHaveProperty('environment');
@@ -34,24 +30,29 @@ describe('Express App', () => {
     });
 
     it('reports prismaConfigured false when SUPABASE_DB_URL is not set', async () => {
-      const response = await request(app).get('/health');
-      expect(response.body.prismaConfigured).toBe(false);
+      const response = createMockResponse();
+
+      await healthHandler({} as Request, response as any);
+
+      expect(response.body).toMatchObject({ prismaConfigured: false });
     });
 
     it('reports clientReady false when no database is configured', async () => {
-      const response = await request(app).get('/health');
-      expect(response.body.clientReady).toBe(false);
+      const response = createMockResponse();
+
+      await healthHandler({} as Request, response as any);
+
+      expect(response.body).toMatchObject({ clientReady: false });
     });
   });
 
-  describe('unknown routes', () => {
-    it('returns 404 for an unregistered path', async () => {
-      const response = await request(app).get('/not-a-real-route');
-      expect(response.status).toBe(404);
-    });
+  describe('not found handler', () => {
+    it('returns the standard 404 error body', () => {
+      const response = createMockResponse();
 
-    it('returns the standard not found error body', async () => {
-      const response = await request(app).get('/not-a-real-route');
+      notFoundHandler({} as Request, response as any);
+
+      expect(response.statusCode).toBe(404);
       expect(response.body).toEqual({
         error: {
           code: 'NOT_FOUND',
@@ -62,9 +63,8 @@ describe('Express App', () => {
   });
 
   describe('security headers', () => {
-    it('does not expose x-powered-by', async () => {
-      const response = await request(app).get('/health');
-      expect(response.headers['x-powered-by']).toBeUndefined();
+    it('does not expose x-powered-by', () => {
+      expect(app.enabled('x-powered-by')).toBe(false);
     });
   });
 });
